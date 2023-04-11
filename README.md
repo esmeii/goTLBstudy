@@ -99,3 +99,4 @@ Papers that use MGPUSim:
 
 MIT © Project Akita Developers.
 # mgpusim
+# mgpusim-gmmu
