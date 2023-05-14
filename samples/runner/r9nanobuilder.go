@@ -2,7 +2,6 @@ package runner
 
 import (
 	"fmt"
-
 	rob2 "gitlab.com/akita/mgpusim/v3/timing/rob"
 
 	"gitlab.com/akita/akita/v3/monitoring"
@@ -516,8 +515,8 @@ func (b *R9NanoGPUBuilder) buildL2Caches() {
 		WithLog2BlockSize(b.log2CacheLineSize).
 		WithWayAssociativity(16).
 		WithByteSize(byteSize).
-		WithNumMSHREntry(64).
-		WithNumReqPerCycle(16)
+		WithNumMSHREntry(64). //64
+		WithNumReqPerCycle(1)
 
 	for i := 0; i < b.numMemoryBank; i++ {
 		cacheName := fmt.Sprintf("%s.L2[%d]", b.gpuName, i)
@@ -815,14 +814,16 @@ func (b *R9NanoGPUBuilder) buildCP() {
 }
 
 func (b *R9NanoGPUBuilder) buildL2TLB() {
-	numWays := 64
+	numWays := 64 //64
+	reqPerCycle := int(b.dramSize / (1 << b.log2PageSize) / uint64(numWays))
 	builder := tlb.MakeBuilder().
 		WithEngine(b.engine).
 		WithFreq(b.freq).
-		WithNumWays(numWays).
+		WithNumWays(8). //8
+		//int(b.dramSize / (1 << b.log2PageSize) / uint64(numWays))
 		WithNumSets(int(b.dramSize / (1 << b.log2PageSize) / uint64(numWays))).
-		WithNumMSHREntry(64).
-		WithNumReqPerCycle(1024).
+		WithNumMSHREntry(64).//64
+		WithNumReqPerCycle(reqPerCycle).//1024
 		WithPageSize(1 << b.log2PageSize).
 		WithLowModule(b.mmu.GetPortByName("Top"))
 

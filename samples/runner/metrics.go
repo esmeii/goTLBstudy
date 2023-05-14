@@ -34,7 +34,7 @@ func (c *collector) CollectHeader(header string) {
 }
 
 func (c *collector) Dump(name string) {
-	f, err := os.Create(name + ".csv")
+	f, err := os.Create(name + ".xlsx")
 	if err != nil {
 		panic(err)
 	}

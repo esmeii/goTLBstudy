@@ -3,7 +3,7 @@ package pagemigrationcontroller
 import (
 	"log"
 	"reflect"
-
+	"fmt"
 	"gitlab.com/akita/akita/v3/sim"
 	"gitlab.com/akita/mem/v3/mem"
 )
@@ -44,6 +44,7 @@ type PageMigrationController struct {
 	TotalDataTransferTime sim.VTimeInSec
 
 	isHandlingPageMigration bool
+	durationPMC	sim.VTimeInSec
 }
 
 // Tick updates the status of a PageMigrationController.
@@ -174,7 +175,11 @@ func (e *PageMigrationController) sendMigrationReqToAnotherPMC(
 		sendPacket.SendTime = now
 		sendErr := e.remotePort.Send(sendPacket)
 		if sendErr == nil {
+			//migration request occur
 			madeProgress = true
+			e.durationPMC = now
+			fmt.Println("sendMigrationReqToAnotherPMC\t[%f]",now)
+			fmt.Printf("%+v\n",sendPacket)
 		} else {
 			newInPullFromAnotherPMC = append(
 				newInPullFromAnotherPMC, sendPacket)
@@ -212,7 +217,8 @@ func (e *PageMigrationController) processReadPageReqFromAnotherPMC(
 			WithAddress(address).
 			WithByteSize(dataTransferSize).
 			Build()
-
+		fmt.Printf("processReadPageReqFromAnotherPMC\t\n")
+		fmt.Println("%+v\n",req)
 		req.ID = e.currentPullReqFromAnotherPMC[i].ID
 		e.toSendLocalMemPort = append(e.toSendLocalMemPort, req)
 	}
@@ -434,6 +440,8 @@ func (e *PageMigrationController) sendMigrationCompleteRspToCtrlPort(
 	err := e.ctrlPort.Send(e.toSendToCtrlPort)
 
 	if err == nil {
+		e.durationPMC = now - e.durationPMC
+		fmt.Println("EUN:\tdurationPMC\t%5f\n")
 		e.DataTransferEndTime = now
 		e.TotalDataTransferTime = e.TotalDataTransferTime + (e.DataTransferEndTime - e.DataTransferStartTime)
 		e.isHandlingPageMigration = false

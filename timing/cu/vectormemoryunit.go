@@ -2,7 +2,6 @@ package cu
 
 import (
 	"log"
-
 	"gitlab.com/akita/akita/v3/pipelining"
 	"gitlab.com/akita/akita/v3/sim"
 	"gitlab.com/akita/akita/v3/tracing"
@@ -251,7 +250,6 @@ func (u *VectorMemoryUnit) sendRequest(now sim.VTimeInSec) bool {
 		u.numTransactionInFlight--
 
 		tracing.TraceReqInitiate(req, u.cu, info.Inst.ID)
-
 		return true
 	}
 

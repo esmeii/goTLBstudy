@@ -26,12 +26,12 @@ type GMMU struct {
 
 	topSender sim.BufferedSender
 
-	pageTable           vm.PageTable
+	pageTable           vm.PageTable  //PageTable
 	latency             int
 	maxRequestsInFlight int
 
 	walkingTranslations      []transaction
-	migrationQueue           []transaction
+	migrationQueue           []transaction //QUEUE
 	migrationQueueSize       int
 	currentOnDemandMigration transaction
 	isDoingMigration         bool
@@ -172,10 +172,7 @@ func (gmmu *GMMU) sendMigrationToDriver(
 ) (madeProgress bool) {
 	if len(gmmu.migrationQueue) == 0 {
 		return false
-	}//else{
-		//there are migration requests in Queue
-	//	topItem = len(mmu.migrationQueue)-1
-	//}
+	}
 	trans := gmmu.migrationQueue[0]
 	req := trans.req
 	page, found := gmmu.pageTable.Find(req.PID, req.VAddr)

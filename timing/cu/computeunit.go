@@ -3,7 +3,6 @@ package cu
 import (
 	"log"
 	"reflect"
-
 	"github.com/rs/xid"
 	"gitlab.com/akita/akita/v3/sim"
 	"gitlab.com/akita/akita/v3/tracing"
@@ -507,7 +506,10 @@ func (cu *ComputeUnit) handleVectorDataLoadReturn(
 ) {
 	if len(cu.InFlightVectorMemAccess) == 0 {
 		return
-	}
+	}//else if len(cu.InFlightVectorMemAccess) == cu.InFlightVectorMemAccessLimit {
+		//EUN: 0406 this else if statement is made by me, remove it
+	//	return
+	//}
 
 	info := cu.InFlightVectorMemAccess[0]
 
@@ -558,7 +560,9 @@ func (cu *ComputeUnit) handleVectorDataStoreRsp(
 ) {
 	if len(cu.InFlightVectorMemAccess) == 0 {
 		return
-	}
+	}//else if len(cu.InFlightVectorMemAccess) == cu.InFlightVectorMemAccessLimit {
+	//	return
+	//}
 
 	info := cu.InFlightVectorMemAccess[0]
 
@@ -809,6 +813,7 @@ func NewComputeUnit(
 	cu.ToScalarMem = sim.NewLimitNumMsgPort(cu, 4, name+".ToScalarMem")
 	cu.ToVectorMem = sim.NewLimitNumMsgPort(cu, 4, name+".ToVectorMem")
 	cu.ToCP = sim.NewLimitNumMsgPort(cu, 4, name+".ToCP")
-
+	//EUN: 0406 InFlightVectorMemAccessLimit
+	cu.InFlightVectorMemAccessLimit = 1
 	return cu
 }

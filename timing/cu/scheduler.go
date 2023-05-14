@@ -2,7 +2,6 @@ package cu
 
 import (
 	"log"
-
 	"gitlab.com/akita/akita/v3/sim"
 	"gitlab.com/akita/akita/v3/tracing"
 	"gitlab.com/akita/mem/v3/mem"

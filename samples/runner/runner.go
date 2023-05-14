@@ -2,9 +2,10 @@
 package runner
 
 import (
+	"fmt"
 	"flag"
 	"log"
-
+	"os"
 	// Enable profiling
 	_ "net/http/pprof"
 	"strconv"
@@ -734,6 +735,9 @@ func (r *Runner) reportStats() {
 
 func (r *Runner) reportInstCount() {
 	kernelTime := float64(r.kernelTimeCounter.BusyTime())
+	totalTracerCount := uint64(0)
+	totalCuCount := float64(0)
+	totalSimdCount := float64(0)
 	for _, t := range r.instCountTracers {
 		cuFreq := float64(t.cu.(*cu.ComputeUnit).Freq)
 		numCycle := kernelTime * cuFreq
@@ -743,13 +747,28 @@ func (r *Runner) reportInstCount() {
 
 		r.metricsCollector.Collect(
 			t.cu.Name(), "cu_CPI", numCycle/float64(t.tracer.count))
-
+		
+		transIPC := float64(t.tracer.count) / numCycle
+		
+		r.metricsCollector.Collect(
+			t.cu.Name(), "cu_IPC", transIPC)
+		
+		totalTracerCount += t.tracer.count
+		totalCuCount += transIPC
+		
 		r.metricsCollector.Collect(
 			t.cu.Name(), "simd_inst_count", float64(t.tracer.simdCount))
 
 		r.metricsCollector.Collect(
 			t.cu.Name(), "simd_CPI", numCycle/float64(t.tracer.simdCount))
+		transSimdIpc := float64(t.tracer.simdCount) /numCycle
+		totalSimdCount += transSimdIpc
+		
+		r.metricsCollector.Collect(
+			 t.cu.Name(), "simd_IPC", transSimdIpc)
 	}
+	r.metricsCollector.Collect("CU", "average_CU_IPC", float64(totalCuCount)/64)
+	r.metricsCollector.Collect("SIMD","average_SIMD_IPC", float64(totalSimdCount)/64)
 }
 
 func (r *Runner) reportCPIStack() {
@@ -761,7 +780,6 @@ func (r *Runner) reportCPIStack() {
 		for name, value := range cpiStack {
 			r.metricsCollector.Collect(cu.Name(), "CPIStack."+name, value)
 		}
-
 		simdCPIStack := hook.GetSIMDCPIStack()
 		for name, value := range simdCPIStack {
 			r.metricsCollector.Collect(cu.Name(), "SIMDCPIStack."+name, value)
@@ -798,16 +816,17 @@ func (r *Runner) reportCacheLatency() {
 		if tracer.tracer.AverageTime() == 0 {
 			continue
 		}
-
 		r.metricsCollector.Collect(
 			tracer.cache.Name(),
-			"req_average_latency",
+			"Cache Latency",
 			float64(tracer.tracer.AverageTime()),
 		)
 	}
 }
 
 func (r *Runner) reportCacheHitRate() {
+	totalHit := uint64(0)
+	totalMiss := uint64(0)
 	for _, tracer := range r.cacheHitRateTracers {
 		readHit := tracer.tracer.GetStepCount("read-hit")
 		readMiss := tracer.tracer.GetStepCount("read-miss")
@@ -818,15 +837,21 @@ func (r *Runner) reportCacheHitRate() {
 
 		totalTransaction := readHit + readMiss + readMSHRHit +
 			writeHit + writeMiss + writeMSHRHit
-
+		totalTransactionRead := readHit + readMiss + readMSHRHit
 		if totalTransaction == 0 {
 			continue
 		}
 
 		r.metricsCollector.Collect(
 			tracer.cache.Name(), "read-hit", float64(readHit))
+		totalHit += readHit
+		r.metricsCollector.Collect(
+			tracer.cache.Name(), "read-hit-ratio", float64(totalHit)/float64(totalTransactionRead))
 		r.metricsCollector.Collect(
 			tracer.cache.Name(), "read-miss", float64(readMiss))
+		totalMiss += readMiss
+		r.metricsCollector.Collect(
+			tracer.cache.Name(), "read-miss-ratio",float64(totalMiss)/float64(totalTransactionRead))
 		r.metricsCollector.Collect(
 			tracer.cache.Name(), "read-mshr-hit", float64(readMSHRHit))
 		r.metricsCollector.Collect(
@@ -843,23 +868,32 @@ func (r *Runner) reportTLBHitRate() {
 		hit := tracer.tracer.GetStepCount("hit")
 		miss := tracer.tracer.GetStepCount("miss")
 		mshrHit := tracer.tracer.GetStepCount("mshr-hit")
-
 		totalTransaction := hit + miss + mshrHit
 
 		if totalTransaction == 0 {
 			continue
 		}
-
+		//EUN
+		r.metricsCollector.Collect("Total TLB ", "Transactions", float64(totalTransaction))
 		r.metricsCollector.Collect(
 			tracer.tlb.Name(), "hit", float64(hit))
 		r.metricsCollector.Collect(
+			tracer.tlb.Name(), "hit-ratio", float64(hit)/float64(totalTransaction))
+		r.metricsCollector.Collect(
 			tracer.tlb.Name(), "miss", float64(miss))
+		r.metricsCollector.Collect(
+			tracer.tlb.Name(), "miss-ratio", float64(miss)/float64(totalTransaction))
 		r.metricsCollector.Collect(
 			tracer.tlb.Name(), "mshr-hit", float64(mshrHit))
 	}
 }
 
 func (r *Runner) reportRDMATransactionCount() {
+	file, err := os.Create("RDMA_report.csv")
+        if err != nil {
+              panic(err)
+        }
+	defer file.Close()
 	for _, t := range r.rdmaTransactionCounters {
 		r.metricsCollector.Collect(
 			t.rdmaEngine.Name(),
@@ -871,6 +905,7 @@ func (r *Runner) reportRDMATransactionCount() {
 			"incoming_trans_count",
 			float64(t.incomingTracer.TotalCount()),
 		)
+		fmt.Fprintf(file, "incoming_trans_count: %f\n", float64(t.outgoingTracer.TotalCount()))
 	}
 }
 
@@ -878,12 +913,12 @@ func (r *Runner) reportDRAMTransactionCount() {
 	for _, t := range r.dramTracers {
 		r.metricsCollector.Collect(
 			t.dram.Name(),
-			"read_trans_count",
+			"read_transaction_count",
 			float64(t.tracer.readCount),
 		)
 		r.metricsCollector.Collect(
 			t.dram.Name(),
-			"write_trans_count",
+			"write_transaction_count",
 			float64(t.tracer.writeCount),
 		)
 		r.metricsCollector.Collect(

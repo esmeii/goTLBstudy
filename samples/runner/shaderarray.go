@@ -58,7 +58,7 @@ func makeShaderArrayBuilder() shaderArrayBuilder {
 		gpuID:             0,
 		name:              "SA",
 		numCU:             4,
-		freq:              1 * sim.GHz,
+		freq:              1.8 * sim.GHz,
 		log2CacheLineSize: 6,
 		log2PageSize:      12,
 	}
@@ -333,8 +333,8 @@ func (b *shaderArrayBuilder) buildL1VTLBs(sa *shaderArray) {
 		WithFreq(b.freq).
 		WithNumMSHREntry(4).
 		WithNumSets(1).
-		WithNumWays(64).
-		WithNumReqPerCycle(4)
+		WithNumWays(64). //EUN: 64
+		WithNumReqPerCycle(8)
 
 	for i := 0; i < b.numCU; i++ {
 		name := fmt.Sprintf("%s.L1VTLB[%d]", b.name, i)
@@ -355,7 +355,7 @@ func (b *shaderArrayBuilder) buildL1VCaches(sa *shaderArray) {
 		WithNumBanks(1).
 		WithLog2BlockSize(b.log2CacheLineSize).
 		WithWayAssociativity(4).
-		WithNumMSHREntry(16).
+		WithNumMSHREntry(16). //16
 		WithTotalByteSize(16 * mem.KB)
 
 	if b.visTracer != nil {

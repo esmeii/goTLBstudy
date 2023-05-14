@@ -2,7 +2,6 @@ package cu
 
 import (
 	"log"
-
 	"gitlab.com/akita/akita/v3/sim"
 	"gitlab.com/akita/mgpusim/v3/insts"
 )
@@ -23,7 +22,6 @@ type RegisterFile interface {
 	Read(access RegisterAccess)
 	Write(access RegisterAccess)
 }
-
 // A SimpleRegisterFile is a Register file that can always read and write
 // registers immediately
 type SimpleRegisterFile struct {
@@ -55,6 +53,7 @@ func (r *SimpleRegisterFile) Write(access RegisterAccess) {
 
 	size := access.RegCount * 4
 	copy(r.storage[offset:offset+size], access.Data[0:access.RegCount*4])
+	//fmt.Println("[REG][WRITE]\n%d\t%d\n",access.Src, access.Dst)
 	access.OK = true
 }
 
